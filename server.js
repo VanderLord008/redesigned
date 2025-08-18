@@ -7,5 +7,6 @@ app.get("/try", (req, res) => {
   res.status(200).send("active");
 });
 app.post("/data", (req, res) => {
+  console.log(req.body);
   res.send(req.body);
 });
