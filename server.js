@@ -1,3 +1,4 @@
+
 const express = require("express");
 const mongoose = require("mongoose");
 require("dotenv").config();
@@ -30,23 +31,24 @@ const requestDataSchema = new mongoose.Schema({
 
 const RequestData = mongoose.model("RequestData", requestDataSchema);
 
-// --- Routes ---
+// --- Health check ---
 app.get("/try", (req, res) => {
     res.status(200).send("active");
 });
 
-// Handle Adobe I/O validation + events
+// --- Adobe I/O Events Validation (GET request) ---
+app.get("/data", (req, res) => {
+    const validationCode = req.headers["x-adobe-eventcode"];
+    if (validationCode) {
+        console.log("Received Adobe validation request:", validationCode);
+        return res.status(200).send(validationCode);
+    }
+    return res.status(400).send("Missing x-adobe-eventcode header");
+});
+
+// --- Event ingestion (POST request) ---
 app.post("/data", async (req, res) => {
     try {
-        // 1. Adobe sends validation request with "x-adobe-eventcode"
-        const validationCode = req.headers["x-adobe-eventcode"];
-        if (validationCode) {
-            console.log("Received Adobe validation request:", validationCode);
-            // Respond with validation code as plain text
-            return res.status(200).send(validationCode);
-        }
-
-        // 2. Otherwise, it’s a normal event → save to DB
         const newData = new RequestData({ body: req.body });
         const savedData = await newData.save();
         res.status(201).send(savedData);
@@ -62,4 +64,3 @@ app.post("/data", async (req, res) => {
 app.listen(PORT, () =>
     console.log(`API is on and running at http://localhost:${PORT}`)
 );
-
