@@ -1,7 +1,7 @@
 
 const express = require("express");
 const mongoose = require("mongoose");
-const axios = require("axios");
+const https = require("https"); // built-in, no need to install
 require("dotenv").config();
 
 const app = express();
@@ -54,16 +54,19 @@ app.post("/data", async (req, res) => {
       const { validationUrl } = req.body;
       console.log("🟡 POST async validation received. URL:", validationUrl);
 
-      // Acknowledge quickly
+      // 1) Acknowledge quickly
       res.status(200).json({ status: "ok" });
 
-      // Call validationUrl out-of-band
+      // 2) Complete validation out-of-band using https
       (async () => {
         try {
-          const r = await axios.get(validationUrl, { timeout: 4000 });
-          console.log("✅ validationUrl GET success. Status:", r.status);
+          https.get(validationUrl, (resp) => {
+            console.log("✅ validationUrl GET success. Status:", resp.statusCode);
+          }).on("error", (err) => {
+            console.error("❌ validationUrl GET failed:", err.message);
+          });
         } catch (err) {
-          console.error("❌ validationUrl GET failed:", err.message || err);
+          console.error("❌ validationUrl request error:", err.message);
         }
       })();
 
