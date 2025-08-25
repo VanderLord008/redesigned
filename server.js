@@ -40,27 +40,44 @@ app.get("/try", (req, res) => {
 app.get("/data", (req, res) => {
     const validationCode = req.headers["x-adobe-eventcode"];
     if (validationCode) {
-        console.log("Received Adobe validation request:", validationCode);
+        console.log("✅ GET validation request received:", validationCode);
         return res.status(200).send(validationCode);
     }
     return res.status(400).send("Missing x-adobe-eventcode header");
 });
 
-// --- Event ingestion (POST request) ---
+// --- Event ingestion + Fallback Validation (POST request) ---
 app.post("/data", async (req, res) => {
     try {
+        // 1. Check if it's a validation POST (Adobe fallback)
+        const validationCode = req.headers["x-adobe-eventcode"];
+        const adobeEventType = req.headers["x-adobe-eventtype"];
+
+        // Case A: Validation via header
+        if (validationCode) {
+            console.log("✅ POST validation request via header:", validationCode);
+            return res.status(200).send(validationCode);
+        }
+
+        // Case B: Validation via body payload
+        if (adobeEventType === "validation:request" && req.body && req.body.challenge) {
+            console.log("✅ POST validation request via body:", req.body.challenge);
+            return res.status(200).send(req.body.challenge);
+        }
+
+        // 2. Otherwise, it’s a real event → save to DB
         const newData = new RequestData({ body: req.body });
         const savedData = await newData.save();
         res.status(201).send(savedData);
     } catch (error) {
-        console.error("Error saving data:", error);
+        console.error("❌ Error handling POST /data:", error);
         res
             .status(500)
-            .send({ message: "Failed to save data", error: error.message });
+            .send({ message: "Failed to process request", error: error.message });
     }
 });
 
 // --- Start server ---
 app.listen(PORT, () =>
-    console.log(`API is on and running at http://localhost:${PORT}`)
+    console.log(`🚀 API is running at http://localhost:${PORT}`)
 );
